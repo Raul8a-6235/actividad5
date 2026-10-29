@@ -79,3 +79,58 @@ for d in "$DEST_DIR"/*/; do
     n=$(find "$d" -type f | wc -l)
     printf "      %-15s %3d archivo(s)\n" "$(basename "$d")/" "$n"
 done
+
+# ---------------------------------------------------------------------------
+# 4. Auditoría de código en archivos .py
+# ---------------------------------------------------------------------------
+PY_DIR="$DEST_DIR/py"
+KEYWORD="PySide6"
+KEYWORD_CV="cv2"
+
+echo
+echo "=================================================================="
+echo " AUDITORÍA DE ARCHIVOS PYTHON (búsqueda de '$KEYWORD' y '$KEYWORD_CV')"
+echo "=================================================================="
+
+if [ ! -d "$PY_DIR" ]; then
+    echo "No se encontraron archivos .py en el zip."
+    exit 0
+fi
+
+py_total=0
+py_pyside=0
+py_cv2=0
+
+while IFS= read -r -d '' pyfile; do
+    py_total=$((py_total + 1))
+    echo
+    echo "Archivo: $pyfile"
+
+    if grep -q "$KEYWORD" "$pyfile"; then
+        py_pyside=$((py_pyside + 1))
+        echo "  [SÍ] Contiene '$KEYWORD':"
+        grep -n "$KEYWORD" "$pyfile" | sed 's/^/     línea /'
+    else
+        echo "  [NO] No contiene '$KEYWORD'."
+    fi
+
+    if grep -qw "$KEYWORD_CV" "$pyfile"; then
+        py_cv2=$((py_cv2 + 1))
+        echo "  [SÍ] Contiene '$KEYWORD_CV':"
+        grep -nw "$KEYWORD_CV" "$pyfile" | sed 's/^/     línea /'
+    fi
+done < <(find "$PY_DIR" -type f -name "*.py" -print0 | sort -z)
+
+# ---------------------------------------------------------------------------
+# 5. Resumen final
+# ---------------------------------------------------------------------------
+echo
+echo "=================================================================="
+echo " RESUMEN"
+echo "=================================================================="
+echo " Archivos .py analizados:       $py_total"
+echo " Archivos que usan $KEYWORD:     $py_pyside"
+echo " Archivos que usan $KEYWORD_CV:         $py_cv2"
+echo "=================================================================="
+
+exit 0
