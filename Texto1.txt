@@ -1,0 +1,190 @@
+Observaciones: El primer código fallaba al detenerse silenciosamente en el ciclo "while ... done < <(find ...)" debido al manejo de sustitución de procesos en entornos MSYS2/UCRT64 en Windows. Al reemplazarlo por un ciclo "for" apoyado en IFS=$'\n', el script completó la clasificación, eliminó el directorio temporal y ejecutó la auditoría de cv2 sin errores.--------------------------------------------------------------------------------
+Estado: FUNCIONAL.
+--------------------------------------------------------------------------------
+1.5 RESULTADO DEL INTENTO 1
+echo "=============================================================================="
+
+================================================================================
+INTENTO 1: PROMPT ESTRUCTURADO DETALLADO Y AJUSTE DE COMPATIBILIDAD
+================================================================================
+
+--------------------------------------------------------------------------------
+1.1 PROMPT INICIAL (INTENTO 1)
+echo "  - Total de archivos .py analizados : $total_py"
+echo "  - Archivos que utilizan cv2        : $con_cv2"
+--------------------------------------------------------------------------------
+Actúa como un experto en sistemas Unix y programación en Bash Shell. Necesito que desarrolles un script en Bash llamado script.sh que procese un archivo comprimido .zip, clasifique su contenido por extensión y realice una auditoría de código en los archivos de Python (.py).
+Es indispensable que el código esté exhaustivamente documentado con comentarios (#) en todas sus partes críticas explicando qué hace cada bloque y cada comando utilizado.
+
+El script debe implementar estrictamente la siguiente lógica y comandos de Unix/Linux:
+1. Validación de Parámetros y Archivos:
+   - Utiliza una estructura condicional if evaluando la variable $# (if [ "$#" -ne 2 ]; then) para verificar que el script reciba exactamente 2 argumentos desde la terminal ($1 para la ruta del archivo .zip y $2 para la ruta del directorio destino).
+   - Si no se reciben exactamente 2 argumentos, imprime con echo el mensaje: Uso: ./script.sh <archivo.zip> <directorio_destino> y termina la ejecución con exit 1.
+   - Utiliza otro condicional if con el operador -f (if [ ! -f "$1" ]; then) para comprobar que el archivo .zip ingresado realmente exista. Si no existe, muestra un mensaje de error claro y sal con exit 1.
+
+2. Descompresión y Organización por Tipo de Archivo:
+   - Crea una carpeta temporal utilizando mktemp -d (o mkdir -p para un directorio temporal) y descomprime ahí el contenido de $1 usando el comando unzip -q "$1" -d <carpeta_temporal>.
+   - Crea el directorio destino $2 si no existe usando mkdir -p "$2".
+# Resumen final de conteo
+echo "RESUMEN FINAL DE AUDITORÍA:"
+   - Utiliza el comando find (find <carpeta_temporal> -type f) dentro de un ciclo para recorrer todos los archivos extraídos, ignorando carpetas vacías.
+   - Para cada archivo, extrae su nombre con basename y obtén su extensión mediante expansión de parámetros de Bash (${archivo##*.}). Si un archivo no tiene extensión, asígnalo a una subcarpeta llamada otros/.
+   - Crea dinámicamente las subcarpetas dentro de $2 según cada extensión encontrada (ejemplo: $2/py/, $2/txt/, $2/jpg/, $2/otros/) usando mkdir -p.
+   - Mueve o copia cada archivo desde la carpeta temporal hacia su subcarpeta correspondiente en $2 utilizando los comandos mv o cp.
+   - Al finalizar el traslado de archivos, elimina la carpeta temporal utilizando rm -rf.
+
+3. Auditoría de Código en Archivos .py:
+   - Utiliza find "$2/py" -type f -name "*.py" para filtrar y analizar exclusivamente los scripts de Python.
+   - Inicializa dos variables contadoras en 0: una para el total de archivos .py analizados y otra para la cantidad de archivos que contienen las librerías buscadas.
+   - Por cada archivo .py, utiliza el comando grep -n -i -E "cv2|import cv2|opencv" para buscar coincidencias exactas o de términos clave de visión por computadora mostrando el número de línea.
+   - Salida en terminal por archivo: Imprime claramente el nombre/ubicación del archivo, indica mediante un condicional if si contiene o no la librería buscada (cv2), y si la contiene, imprime el número de línea y la línea exacta arrojada por grep -n.
+   - Resumen final: Al terminar el recorrido, imprime en la terminal el conteo total de archivos .py analizados y cuántos de ellos utilizan la librería cv2.
+fi
+
+
+--------------------------------------------------------------------------------
+    echo "------------------------------------------------------------------------------"
+1.2 PRIMER CÓDIGO GENERADO (CON FALLO EN ENTORNO UCRT64 / GIT BASH)
+--------------------------------------------------------------------------------
+    echo "No se encontraron archivos .py para analizar."
+#!/bin/bash
+
+if [ "$#" -ne 2 ]; then
+    echo "Uso: ./script.sh <archivo.zip> <directorio_destino>"
+    exit 1
+fi
+else
+
+ARCHIVO_ZIP="$1"
+DIR_DESTINO="$2"
+
+if [ ! -f "$ARCHIVO_ZIP" ]; then
+    echo "Error: El archivo '$ARCHIVO_ZIP' no existe o no es un archivo válido."
+    exit 1
+fi
+    unset IFS
+
+CARPETA_TEMPORAL=$(mktemp -d)
+echo "Directorio temporal creado en: $CARPETA_TEMPORAL"
+
+unzip -q "$ARCHIVO_ZIP" -d "$CARPETA_TEMPORAL"
+
+if [ $? -ne 0 ]; then
+    echo "Error: Falló la extracción de '$ARCHIVO_ZIP'. Verifique que sea un archivo .zip íntegro."
+    done
+    rm -rf "$CARPETA_TEMPORAL"
+    exit 1
+fi
+
+mkdir -p "$DIR_DESTINO"
+echo "Clasificando archivos extraídos en '$DIR_DESTINO'..."
+
+while IFS= read -r -d '' archivo; do
+    nombre_base=$(basename "$archivo")
+    if [[ "$nombre_base" == *.* && "$nombre_base" != .* ]]; then
+        extension="${nombre_base##*.}"
+        extension=$(echo "$extension" | tr '[:upper:]' '[:lower:]')
+    else
+        extension="otros"
+    fi
+    subcarpeta="$DIR_DESTINO/$extension"
+    mkdir -p "$subcarpeta"
+    mv "$archivo" "$subcarpeta/$nombre_base"
+done < <(find "$CARPETA_TEMPORAL" -type f -print0)
+
+rm -rf "$CARPETA_TEMPORAL"
+echo "Clasificación completada y carpeta temporal eliminada."
+echo "------------------------------------------------------------------------------"
+echo "Iniciando auditoría de código en archivos Python (.py)..."
+echo "------------------------------------------------------------------------------"
+
+total_py=0
+con_cv2=0
+DIR_PYTHON="$DIR_DESTINO/py"
+        echo "------------------------------------------------------------------------------"
+
+if [ -d "$DIR_PYTHON" ]; then
+    while IFS= read -r -d '' script_py; do
+        ((total_py++))
+        echo "Archivo analizado: $script_py"
+        coincidencias=$(grep -n -i -E "cv2|import cv2|opencv" "$script_py")
+        if [ -n "$coincidencias" ]; then
+            echo "  [ALERTA] Se detectó el uso de la librería OpenCV (cv2)."
+            echo "  Líneas coincidentes (Número_Línea:Código):"
+            echo "$coincidencias" | sed 's/^/    /'
+        fi
+            ((con_cv2++))
+        else
+            echo "  [OK] No contiene referencias a la librería cv2 / OpenCV."
+        fi
+        echo "------------------------------------------------------------------------------"
+    done < <(find "$DIR_PYTHON" -type f -name "*.py" -print0)
+else
+    echo "No se encontraron archivos .py dentro del archivo comprimido para auditar."
+    echo "------------------------------------------------------------------------------"
+fi
+
+echo "RESUMEN DE AUDITORÍA PYTHON:"
+echo "  - Total de archivos .py analizados : $total_py"
+echo "  - Archivos que utilizan cv2/OpenCV : $con_cv2"
+echo "=============================================================================="
+
+--------------------------------------------------------------------------------
+1.3 PROMPT DE CORRECCIÓN (ITERACIÓN 2 DEL INTENTO 1)
+--------------------------------------------------------------------------------
+El código está arrojando "Directorio temporal creado en: /tmp/tmp.WzGjpazzfu" y "Clasificando archivos extraídos en './resultado_auditoria'..." y crea las carpetas dentro de la carpeta resultado_auditoria mas no genera la lista requerida, apóyame ajustando el código para arreglar esto.
+
+            echo "  [OK] No contiene la librería buscada (cv2)."
+--------------------------------------------------------------------------------
+1.4 CÓDIGO FUNCIONAL DEFINITIVO (DOCUMENTADO)
+--------------------------------------------------------------------------------
+#!/bin/bash
+
+# Validación de que el script reciba exactamente 2 parámetros ($#)
+if [ "$#" -ne 2 ]; then
+    echo "Uso: ./script.sh <archivo.zip> <directorio_destino>"
+    exit 1
+        else
+fi
+
+ARCHIVO_ZIP="$1"
+DIR_DESTINO="$2"
+
+# Comprobación de que el archivo .zip ingresado exista (-f)
+if [ ! -f "$ARCHIVO_ZIP" ]; then
+    echo "Error: El archivo '$ARCHIVO_ZIP' no existe o no es un archivo válido."
+    exit 1
+            con_cv2=$((con_cv2 + 1))
+fi
+
+# Creación de carpeta temporal con mktemp -d y descompresión con unzip -q
+CARPETA_TEMPORAL=$(mktemp -d)
+echo "Directorio temporal creado en: $CARPETA_TEMPORAL"
+
+unzip -q "$ARCHIVO_ZIP" -d "$CARPETA_TEMPORAL"
+            echo "$coincidencias" | sed 's/^/    /'
+mkdir -p "$DIR_DESTINO"
+
+echo "Clasificando archivos extraídos en '$DIR_DESTINO'..."
+
+# Recorrido de archivos usando find -type f y clasificación por extensión
+IFS=$'\n'
+for archivo in $(find "$CARPETA_TEMPORAL" -type f); do
+    nombre_base=$(basename "$archivo")
+    
+    # Obtención de extensión por expansión de parámetros o asignación a 'otros'
+DIR_PYTHON="$DIR_DESTINO/py"
+
+if [ -d "$DIR_PYTHON" ]; then
+    IFS=$'\n'
+    # Filtrado de archivos .py con find y búsqueda de cv2/opencv con grep -n -i -E
+    for script_py in $(find "$DIR_PYTHON" -type f -name "*.py"); do
+        total_py=$((total_py + 1))
+        echo "Archivo analizado: $script_py"
+        
+        coincidencias=$(grep -n -i -E "cv2|import cv2|opencv" "$script_py")
+        
+        if [ -n "$coincidencias" ]; then
+            echo "  [ALERTA] Contiene la librería buscada (cv2)."
+            echo "  Líneas encontradas:"
+
