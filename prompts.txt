@@ -1,0 +1,145 @@
+Actúa como experto en Bash y Linux. Necesito un script llamado organizador.sh
+para una actividad universitaria. Debe ser compatible con Bash en Linux/WSL,
+tener comentarios claros y variables con nombres descriptivos.
+
+ENTRADAS
+- $1: ruta de un archivo .zip
+- $2: ruta del directorio destino
+
+VALIDACIONES
+- Si no hay exactamente 2 argumentos, imprimir
+  "Uso: ./script.sh <archivo.zip> <directorio_destino>" y salir con exit 1.
+- Verificar que el .zip exista; si no, mostrar error y exit 1.
+- Manejar rutas con espacios (variables entre comillas).
+
+ORGANIZACIÓN
+- Descomprimir con unzip en una carpeta temporal creada con mktemp -d.
+- Con find, recorrer todos los archivos y copiarlos a subcarpetas del destino
+  por extensión (py/, txt/, jpg/, etc.; "otros/" si no tiene extensión).
+  Crear las carpetas con mkdir -p.
+
+AUDITORÍA DE PYTHON
+- Revisar solo los .py del destino.
+- Buscar "cv2", "import cv2" y "opencv" con grep -n (ignorando mayúsculas).
+- Por cada .py imprimir: ubicación, si contiene o no la palabra, y el número
+  de línea con la línea exacta de cada coincidencia.
+
+RESUMEN FINAL
+- Total de .py analizados y cuántos usan cv2 (contar archivos, no líneas).
+
+RESTRICCIONES
+- Usar solo unzip, find, grep, mkdir, if/case y comandos estándar.
+- Borrar la carpeta temporal al final de forma segura.
+- Entregar el script completo en un solo bloque de código.
+
+
+
+Versión 2: cambio a PySide6 y organización por tipo
+
+Actúa como experto en Bash y Linux. Necesito un script llamado organizador.sh
+para una actividad universitaria. Debe ser compatible con Bash en Linux/WSL,
+tener comentarios claros y variables con nombres descriptivos.
+
+ENTRADAS
+- $1: ruta de un archivo .zip
+- $2: ruta del directorio destino
+
+VALIDACIONES
+- Si no hay exactamente 2 argumentos, imprimir
+  "Uso: ./script.sh <archivo.zip> <directorio_destino>" y salir con exit 1.
+- Verificar que el .zip exista; si no, mostrar error y exit 1.
+- Manejar rutas con espacios (variables entre comillas).
+- Crear el directorio destino con mkdir -p si no existe.
+
+DESCOMPRESIÓN
+- Descomprimir con unzip en una carpeta temporal creada con mktemp -d.
+
+CLASIFICACIÓN POR TIPO
+- Con find, recorrer todos los archivos de la carpeta temporal y, con case
+  sobre la extensión (convertida a minúsculas), copiarlos a estas
+  subcarpetas del destino:
+  - imagenes/: jpg, jpeg, png, gif, bmp, svg
+  - audio/: mp3, wav, ogg, flac
+  - video/: mp4, avi, mkv, mov
+  - documentos/: pdf, doc, docx, txt, md, xls, xlsx, ppt, pptx, csv
+  - scripts/: py, sh, js y similares (ver reglas abajo)
+  - otros/: cualquier otra extensión o archivos sin extensión
+- Crear las carpetas con mkdir -p.
+- Si hay dos archivos con el mismo nombre, no sobrescribir: agregar un
+  sufijo numérico.
+
+REGLAS PARA SCRIPTS
+- La carpeta principal es scripts/.
+- Cada archivo .py se analiza ANTES de guardarse, con grep -n -i "PySide6".
+  - Si lo contiene, se copia a scripts/PySide6/.
+  - Si no lo contiene, se copia a scripts/python_otros/.
+- Los demás scripts (.sh, .js, etc.) se copian a scripts/otros_scripts/.
+
+AUDITORÍA DE PYTHON (salida en terminal)
+- Por cada .py analizado imprimir: nombre/ubicación, si contiene o no
+  PySide6, y el número de línea con la línea exacta de cada coincidencia
+  (grep -n).
+
+RESUMEN FINAL
+- Total de .py analizados y cuántos usan PySide6 (contar archivos, no líneas).
+
+RESTRICCIONES
+- Usar solo unzip, find, grep, mkdir, if/case y comandos estándar.
+- Borrar la carpeta temporal al final de forma segura.
+- Entregar el script completo en un solo bloque de código.
+
+Versión 3: subcarpetas por formato y descompresión detallada
+
+Actúa como experto en Bash y Linux. Necesito un script llamado organizador.sh
+para una actividad universitaria. Debe ser compatible con Bash en Linux/WSL,
+tener comentarios claros y variables con nombres descriptivos.
+
+ENTRADAS
+- $1: ruta de un archivo .zip
+- $2: ruta del directorio destino
+
+VALIDACIONES
+- Si no hay exactamente 2 argumentos, imprimir
+  "Uso: ./script.sh <archivo.zip> <directorio_destino>" y salir con exit 1.
+- Verificar que el .zip exista; si no, mostrar error y exit 1.
+- Verificar que unzip esté instalado (command -v); si no, avisar y exit 1.
+- Manejar rutas con espacios (variables entre comillas).
+- Crear el directorio destino con mkdir -p si no existe.
+
+DESCOMPRESIÓN
+- Crear una carpeta temporal con mktemp -d.
+- Descomprimir el .zip ahí con unzip -q "$1" -d "$carpeta_temporal".
+- Si unzip falla (archivo dañado), mostrar error y exit 1.
+- Usar trap para borrar la carpeta temporal al terminar, incluso si hay error.
+
+CLASIFICACIÓN POR TIPO Y FORMATO
+- Con find, recorrer todos los archivos de la carpeta temporal (incluyendo
+  subcarpetas) y, con case sobre la extensión en minúsculas, copiarlos a una
+  carpeta principal por tipo y, dentro, una subcarpeta por formato:
+  - imagenes/: jpg/, jpeg/, png/, gif/, bmp/, svg/
+  - audio/: mp3/, wav/, ogg/, flac/
+  - video/: mp4/, avi/, mkv/, mov/
+  - documentos/: pdf/, doc/, docx/, txt/, md/, xls/, xlsx/, ppt/, pptx/, csv/
+  - scripts/: ver reglas abajo
+  - otros/: cualquier otra extensión o sin extensión
+- Crear las carpetas con mkdir -p solo cuando haga falta.
+- Si hay dos archivos con el mismo nombre, no sobrescribir: agregar sufijo
+  numérico.
+
+REGLAS PARA SCRIPTS
+- Cada archivo .py se analiza ANTES de guardarse, con grep -n -i "PySide6".
+  - Si lo contiene: scripts/PySide6/
+  - Si no lo contiene: scripts/python_otros/
+- Los demás scripts (.sh, .js, etc.): scripts/otros_scripts/
+
+AUDITORÍA DE PYTHON (salida en terminal)
+- Por cada .py analizado imprimir: nombre/ubicación, si contiene o no
+  PySide6, y el número de línea con la línea exacta de cada coincidencia
+  (grep -n).
+
+RESUMEN FINAL
+- Total de .py analizados y cuántos usan PySide6 (contar archivos, no líneas).
+
+RESTRICCIONES
+- Usar solo unzip, find, grep, mkdir, if/case, trap y comandos estándar.
+- Entregar el script completo en un solo bloque de código.
