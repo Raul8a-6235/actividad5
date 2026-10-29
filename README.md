@@ -5,8 +5,8 @@ Este documento resume el flujo de prompts que cada integrante utilizó con IA pa
 | Integrante | Fuente | Herramienta | Enfoque |
 |---|---|---|---|
 | Santiago | `prompt_Santiago.md` | Claude (Anthropic) | Meta-prompt, prompt inicial y refactorización por problemas reales |
-| Raul | `prompts.txt` | No especificada | Tres versiones del prompt, cada una más detallada que la anterior |
-| Emilio | `Texto1.txt` | No especificada | Prompt estructurado, corrección por fallo en MSYS2/UCRT64 y código final |
+| Raul | `prompts.txt` | Claude (Anthropic) | Tres versiones del prompt, cada una más detallada que la anterior |
+| Emilio | `Texto1.txt` | Gemini Argon 4 | Prompt estructurado, corrección por fallo en MSYS2/UCRT64 y código final |
 
 Nota sobre el material fuente: los archivos de Santiago y Raul contienen únicamente los prompts (no incluyen el código resultante). El archivo de Emilio es el único que contiene el código de cada intento, pero estaba desordenado (líneas mezcladas entre secciones) y el código final estaba truncado. En la sección de Emilio se reordenó el contenido; las partes del código final que no aparecían en el archivo se reconstruyeron a partir del primer código y de la corrección descrita, y están marcadas con el comentario `# (reconstruido)`.
 
