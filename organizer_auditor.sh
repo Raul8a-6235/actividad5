@@ -44,3 +44,38 @@ echo "==> Descomprimiendo '$ZIP_FILE' en carpeta temporal..."
 unzip -q "$ZIP_FILE" -d "$TMP_DIR"
 
 mkdir -p "$DEST_DIR"
+
+
+# ---------------------------------------------------------------------------
+# 3. Organización por extensión
+#    - Se ignoran los archivos basura de macOS (__MACOSX, .DS_Store, ._*)
+#    - Archivos sin extensión van a 'sin_extension/'
+# ---------------------------------------------------------------------------
+echo "==> Organizando archivos por extensión en '$DEST_DIR'..."
+total_files=0
+
+while IFS= read -r -d '' file; do
+    filename="$(basename "$file")"
+
+    if [[ "$filename" == *.* ]]; then
+        ext="${filename##*.}"
+        ext="${ext,,}"                 # extensión en minúsculas (JPG -> jpg)
+    else
+        ext="sin_extension"
+    fi
+
+    mkdir -p "$DEST_DIR/$ext"
+    cp "$file" "$DEST_DIR/$ext/"
+    total_files=$((total_files + 1))
+done < <(find "$TMP_DIR" -type f \
+            ! -path "*/__MACOSX/*" \
+            ! -name ".DS_Store" \
+            ! -name "._*" \
+            -print0)
+
+echo "    $total_files archivos copiados."
+echo "    Carpetas creadas:"
+for d in "$DEST_DIR"/*/; do
+    n=$(find "$d" -type f | wc -l)
+    printf "      %-15s %3d archivo(s)\n" "$(basename "$d")/" "$n"
+done
