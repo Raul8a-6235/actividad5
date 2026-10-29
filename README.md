@@ -1,21 +1,13 @@
-# Actividad 5: Automatización en Bash - Clasificador y Auditor de Código
+Actividad 5: Automatización en Bash - Clasificador y Auditor de Código
 
-Este repositorio contiene el desarrollo y evolución de un script en **Bash** diseñado para procesar archivos comprimidos `.zip`, clasificar su contenido dinámicamente en subdirectorios según su extensión y realizar una auditoría automatizada en los scripts de Python (`.py`) para detectar librerías específicas (como `cv2` / OpenCV o `PySide6`).
+Este repositorio contiene el desarrollo y evolución de un script en Bash diseñado para procesar archivos comprimidos en formato .zip, clasificar su contenido de manera automatizada en subdirectorios según su extensión y realizar una auditoría de código en scripts de Python.
 
----
+A continuación se documentan los tres intentos con sus respectivos prompts y variantes de código desarrolladas durante la práctica.
 
-##  Estructura del Repositorio
+1. Intento 1: Prompt Estructurado y Versión Funcional (Utilizada)
 
-El proyecto documenta tres iteraciones (intentos) con diferentes niveles de complejidad en los prompts, culminando en la versión funcional definitiva empleada para la solución.
+1.1 Prompt Inicial (Intento 1)
 
----
-
-##  Intento 1: Prompt Estructurado y Versión Funcional (Utilizada)
-
-Esta versión implementa validación de parámetros, manejo de rutas relativas/absolutas, extracción segura, organización por extensión mediante expansión de parámetros y un análisis con `grep` adaptado para entornos de terminal Unix/Linux (compatible con Git Bash / UCRT64).
-
-### 1. Prompt Inicial (Intento 1)
-```text
 Actúa como un experto en sistemas Unix y programación en Bash Shell. Necesito que desarrolles un script en Bash llamado script.sh que procese un archivo comprimido .zip, clasifique su contenido por extensión y realice una auditoría de código en los archivos de Python (.py).
 Es indispensable que el código esté exhaustivamente documentado con comentarios (#) en todas sus partes críticas explicando qué hace cada bloque y cada comando utilizado.
 
@@ -40,10 +32,10 @@ El script debe implementar estrictamente la siguiente lógica y comandos de Unix
    - Por cada archivo .py, utiliza el comando grep -n -i -E "cv2|import cv2|opencv" para buscar coincidencias exactas o de términos clave de visión por computadora mostrando el número de línea.
    - Salida en terminal por archivo: Imprime claramente el nombre/ubicación del archivo, indica mediante un condicional if si contiene o no la librería buscada (cv2), y si la contiene, imprime el número de línea y la línea exacta arrojada por grep -n.
    - Resumen final: Al terminar el recorrido, imprime en la terminal el conteo total de archivos .py analizados y cuántos de ellos utilizan la librería cv2.
-```
 
-### 2. Código Definitivo (Texto 1 / Funcional)
-```bash
+
+1.2 Código Funcional Definitivo (Intento 1)
+
 #!/bin/bash
 
 # Validación de que el script reciba exactamente 2 parámetros ($#)
@@ -133,15 +125,12 @@ echo "RESUMEN FINAL DE AUDITORÍA:"
 echo "  - Total de archivos .py analizados : $total_py"
 echo "  - Archivos que utilizan cv2        : $con_cv2"
 echo "=============================================================================="
-```
 
----
 
-##  Intento 2: Refactoring y Organización por Categorías Principales
+2. Intento 2: Organización por Tipos de Archivo y Auditoría de PySide6
 
-Este intento evoluciona el requerimiento para clasificar los archivos en macro-categorías predefinidas (`imagenes/`, `audio/`, `video/`, `documentos/`, `scripts/`, `otros/`) y auditar específicamente la librería `PySide6`.
+2.1 Prompt Utilizado (Intento 2)
 
-```text
 Actúa como experto en Bash y Linux. Necesito un script llamado organizador.sh para una actividad universitaria. Debe ser compatible con Bash en Linux/WSL, tener comentarios claros y variables con nombres descriptivos.
 
 ENTRADAS:
@@ -161,16 +150,74 @@ DESCOMPRESIÓN Y CLASIFICACIÓN:
 AUDITORÍA Y RESUMEN:
 - Por cada .py analizado imprimir ubicación, si contiene PySide6 y el número de línea.
 - Al final, mostrar total de archivos .py analizados y cuántos usan PySide6.
-```
 
----
 
-##  Intento 3: Robustez Avanzada, Manejo de Errores y Trap
+2.2 Código Conceptual Generado (Intento 2)
 
-Este intento añade comprobación de dependencias del sistema (`command -v unzip`), manejo de errores de integridad con código de salida y limpieza segura mediante la directiva `trap`.
+#!/bin/bash
 
-```text
-Actúa como experto en Bash y Linux. Necesito un script llamado organizador.sh para una actividad universitaria. Debe ser compatible con Bash en Linux/WSL, comentarios claros y variables con nombres descriptivos.
+if [ "$#" -ne 2 ]; then
+    echo "Uso: ./script.sh <archivo.zip> <directorio_destino>"
+    exit 1
+fi
+
+ARCHIVO_ZIP="$1"
+DIR_DESTINO="$2"
+
+if [ ! -f "$ARCHIVO_ZIP" ]; then
+    echo "Error: El archivo no existe."
+    exit 1
+fi
+
+CARPETA_TEMPORAL=$(mktemp -d)
+unzip -q "$ARCHIVO_ZIP" -d "$CARPETA_TEMPORAL"
+mkdir -p "$DIR_DESTINO"/{imagenes,audio,video,documentos,scripts/{PySide6,python_otros,otros_scripts},otros}
+
+IFS=$'\n'
+for archivo in $(find "$CARPETA_TEMPORAL" -type f); do
+    nombre_base=$(basename "$archivo")
+    extension="${nombre_base##*.}"
+    extension=$(echo "$extension" | tr '[:upper:]' '[:lower:]')
+
+    case "$extension" in
+        jpg|jpeg|png|gif|bmp|svg)
+            cp "$archivo" "$DIR_DESTINO/imagenes/$nombre_base"
+            ;;
+        mp3|wav|ogg|flac)
+            cp "$archivo" "$DIR_DESTINO/audio/$nombre_base"
+            ;;
+        mp4|avi|mkv|mov)
+            cp "$archivo" "$DIR_DESTINO/video/$nombre_base"
+            ;;
+        pdf|doc|docx|txt|md|xls|xlsx|ppt|pptx|csv)
+            cp "$archivo" "$DIR_DESTINO/documentos/$nombre_base"
+            ;;
+        py)
+            if grep -q -i "PySide6" "$archivo"; then
+                cp "$archivo" "$DIR_DESTINO/scripts/PySide6/$nombre_base"
+            else
+                cp "$archivo" "$DIR_DESTINO/scripts/python_otros/$nombre_base"
+            fi
+            ;;
+        sh|js)
+            cp "$archivo" "$DIR_DESTINO/scripts/otros_scripts/$nombre_base"
+            ;;
+        *)
+            cp "$archivo" "$DIR_DESTINO/otros/$nombre_base"
+            ;;
+    esac
+done
+unset IFS
+
+rm -rf "$CARPETA_TEMPORAL"
+echo "Clasificación por categorías completada."
+
+
+3. Intento 3: Robustez Avanzada, Manejo de Errores y Trap
+
+3.1 Prompt Utilizado (Intento 3)
+
+Actúa como experto en Bash y Linux. Necesito un script avanzado llamado organizador.sh para una actividad universitaria. Debe ser compatible con Bash en Linux/WSL, comentarios claros y variables con nombres descriptivos.
 
 ENTRADAS Y VALIDACIONES:
 - Recibir exactamente 2 argumentos ($1 y $2). Si no, salir con exit 1.
@@ -186,6 +233,78 @@ CLASIFICACIÓN Y AUDITORÍA:
 - Recorrer con find y case para subcarpetas detalladas por formato (jpg/, png/, pdf/, txt/, etc.).
 - Filtrar scripts .py para auditoría con grep -n -i de PySide6, separando en subcarpetas especializadas.
 - Imprimir reporte detallado por archivo y resumen estadístico final al terminar.
-```
 
----
+
+3.2 Código Conceptual Generado (Intento 3)
+
+#!/bin/bash
+
+if [ "$#" -ne 2 ]; then
+    echo "Uso: ./script.sh <archivo.zip> <directorio_destino>"
+    exit 1
+fi
+
+if ! command -v unzip &> /dev/null; then
+    echo "Error: El comando unzip no está instalado en el sistema."
+    exit 1
+fi
+
+ARCHIVO_ZIP="$1"
+DIR_DESTINO="$2"
+
+if [ ! -f "$ARCHIVO_ZIP" ]; then
+    echo "Error: El archivo .zip especificado no existe."
+    exit 1
+fi
+
+CARPETA_TEMPORAL=$(mktemp -d)
+trap 'rm -rf "$CARPETA_TEMPORAL"' EXIT
+
+unzip -q "$ARCHIVO_ZIP" -d "$CARPETA_TEMPORAL"
+if [ $? -ne 0 ]; then
+    echo "Error: El archivo zip está dañado o no es válido."
+    exit 1
+fi
+
+mkdir -p "$DIR_DESTINO"
+
+IFS=$'\n'
+for archivo in $(find "$CARPETA_TEMPORAL" -type f); do
+    nombre_base=$(basename "$archivo")
+    extension="${nombre_base##*.}"
+    extension=$(echo "$extension" | tr '[:upper:]' '[:lower:]')
+
+    case "$extension" in
+        jpg|png|pdf|txt)
+            mkdir -p "$DIR_DESTINO/$extension"
+            cp "$archivo" "$DIR_DESTINO/$extension/$nombre_base"
+            ;;
+        py)
+            mkdir -p "$DIR_DESTINO/py"
+            if grep -q -i "PySide6" "$archivo"; then
+                echo "Auditoría PySide6 encontrada en: $archivo"
+                grep -n -i "PySide6" "$archivo"
+            fi
+            cp "$archivo" "$DIR_DESTINO/py/$nombre_base"
+            ;;
+        *)
+            mkdir -p "$DIR_DESTINO/otros"
+            cp "$archivo" "$DIR_DESTINO/otros/$nombre_base"
+            ;;
+    esac
+done
+unset IFS
+
+echo "Proceso finalizado exitosamente."
+
+
+4. Instrucciones de Uso
+
+Otorgar permisos de ejecución al script:
+
+chmod +x script.sh
+
+
+Ejecutar pasando la ruta del archivo comprimido y el directorio destino:
+
+./script.sh proyecto_analisis.zip ./resultado_auditoria
