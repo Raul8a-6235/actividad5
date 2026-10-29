@@ -189,14 +189,3 @@ CLASIFICACIÓN Y AUDITORÍA:
 ```
 
 ---
-
-##  Instrucciones de Uso (Para el Script Principal)
-
-1. **Dar permisos de ejecución:**
-   ```bash
-   chmod +x script.sh
-   ```
-2. **Ejecutar el script pasando el `.zip` y el directorio de salida:**
-   ```bash
-   ./script.sh proyecto_analisis.zip ./resultado_auditoria
-   ```
