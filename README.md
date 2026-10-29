@@ -1,13 +1,282 @@
-Actividad 5: Automatización en Bash - Clasificador y Auditor de Código
+# Flujo de prompts y versiones del script - Actividad 5 (Organizador / Auditor)
 
-Este repositorio contiene el desarrollo y evolución de un script en Bash diseñado para procesar archivos comprimidos en formato .zip, clasificar su contenido de manera automatizada en subdirectorios según su extensión y realizar una auditoría de código en scripts de Python.
+Este documento resume el flujo de prompts que cada integrante utilizó con IA para generar su versión del script en Bash que descomprime un `.zip`, clasifica su contenido y audita los archivos Python (`.py`).
 
-A continuación se documentan los tres intentos con sus respectivos prompts y variantes de código desarrolladas durante la práctica.
+| Integrante | Fuente | Herramienta | Enfoque |
+|---|---|---|---|
+| Santiago | `prompt_Santiago.md` | Claude (Anthropic) | Meta-prompt, prompt inicial y refactorización por problemas reales |
+| Raul | `prompts.txt` | No especificada | Tres versiones del prompt, cada una más detallada que la anterior |
+| Emilio | `Texto1.txt` | No especificada | Prompt estructurado, corrección por fallo en MSYS2/UCRT64 y código final |
 
-1. Intento 1: Prompt Estructurado y Versión Funcional (Utilizada)
+Nota sobre el material fuente: los archivos de Santiago y Raul contienen únicamente los prompts (no incluyen el código resultante). El archivo de Emilio es el único que contiene el código de cada intento, pero estaba desordenado (líneas mezcladas entre secciones) y el código final estaba truncado. En la sección de Emilio se reordenó el contenido; las partes del código final que no aparecían en el archivo se reconstruyeron a partir del primer código y de la corrección descrita, y están marcadas con el comentario `# (reconstruido)`.
 
-1.1 Prompt Inicial (Intento 1)
+---
 
+## 1. Santiago
+
+### Flujo
+
+1. Se pidió a Claude que generara un prompt (meta-prompt) a partir de las instrucciones de la actividad.
+2. Se usó el prompt generado para obtener la primera versión del script (`organizer_auditor.sh`).
+3. Se probó con `proyecto_analisis.zip`, se detectaron problemas y se envió un prompt de corrección.
+4. Se obtuvo la versión refinada y se validó con el resultado final.
+
+### Prompt 0: meta-prompt (con las instrucciones de la actividad adjuntas)
+
+```text
+Genera un prommpt para: validar parámetros, organizacion por
+tipo de archivos,auditoria de archivos py y generacion de subracarpetas
+(adjunte instrucciones de actividad)
+```
+
+### Prompt 1: prompt inicial (primera versión del script)
+
+```text
+Actúa como un experto en Bash scripting en Linux. Genera un script llamado
+organizer_auditor.sh que cumpla con lo siguiente:
+
+1. Validación de parámetros:
+   - Debe recibir exactamente 2 argumentos: $1 = ruta del archivo .zip,
+     $2 = directorio destino.
+   - Si no son exactamente 2, imprimir
+     "Uso: ./organizer_auditor.sh <archivo.zip> <directorio_destino>" y salir con exit 1.
+   - Verificar con if [ ! -f ] que el .zip exista; si no, mostrar error y exit 1.
+
+2. Organización por tipo de archivo:
+   - Descomprimir el .zip con unzip en una carpeta temporal creada con mktemp -d
+     y borrarla al final con trap.
+   - Usar find para recorrer todos los archivos extraídos.
+   - Por cada archivo, obtener su extensión y crear con mkdir -p una subcarpeta
+     con ese nombre dentro del directorio destino (py/, png/, csv/, etc.).
+   - Copiar cada archivo a su carpeta. Los archivos sin extensión van a sin_extension/.
+
+3. Auditoría de archivos .py:
+   - Recorrer solo la carpeta py/ del destino.
+   - Para cada archivo .py imprimir: su ruta, si contiene "PySide6" o no, y
+     usar grep -n para mostrar número de línea y la línea exacta de cada coincidencia.
+   - Al final mostrar un resumen con el total de .py analizados y cuántos usan
+     PySide6 y cuántos usan cv2.
+
+Comenta cada sección del script y usa comillas en todas las variables.
+```
+
+### Prompt 2: corrección / refactoring
+
+```text
+Al probar el script con proyecto_analisis.zip encontré estos problemas:
+- El zip fue creado en macOS y trae una carpeta __MACOSX con archivos "._*"
+  y un .DS_Store; esos archivos basura se están copiando y contando como .py.
+  Exclúyelos en el find.
+- Hay archivos con espacios en el nombre (ej. "supermarket_sales - Sheet1.csv");
+  haz que el ciclo sea seguro usando find -print0 y while read -d ''.
+- Normaliza las extensiones a minúsculas para que .JPG y .jpg queden juntas.
+- Agrega una validación para comprobar que el archivo sea un zip válido
+  (unzip -t) y que el comando unzip esté instalado.
+- Al terminar la organización, muestra cuántos archivos quedaron en cada carpeta.
+```
+
+### Versiones del código
+
+El archivo `prompt_Santiago.md` no incluye el código generado. Las versiones corresponden a:
+
+- Versión 1: resultado del Prompt 1 (clasificación por extensión, auditoría de PySide6/cv2, `trap` para limpiar).
+- Versión 2: resultado del Prompt 2 (exclusión de `__MACOSX`, `._*` y `.DS_Store`; ciclo seguro con `-print0`; extensiones en minúsculas; validación con `unzip -t`; conteo por carpeta).
+
+### Resultado con `proyecto_analisis.zip`
+
+- 98 archivos organizados en 13 carpetas por extensión.
+- 60 archivos `.py` analizados.
+- 28 usan `PySide6`.
+- 0 usan `cv2`.
+
+---
+
+## 2. Raul
+
+### Flujo
+
+Raul no corrigió un código con errores, sino que reescribió el prompt en tres versiones, agregando requisitos en cada una:
+
+1. Versión 1: organización por extensión y auditoría de `cv2`/OpenCV.
+2. Versión 2: cambio de la librería auditada a PySide6 y organización por tipo de archivo (imágenes, audio, video, documentos, scripts, otros), con reglas especiales para scripts y manejo de nombres duplicados.
+3. Versión 3: subcarpetas por formato dentro de cada tipo, validación de `unzip`, manejo de errores de descompresión y limpieza con `trap`.
+
+### Prompt versión 1: organización por extensión y auditoría de cv2
+
+```text
+Actúa como experto en Bash y Linux. Necesito un script llamado organizador.sh
+para una actividad universitaria. Debe ser compatible con Bash en Linux/WSL,
+tener comentarios claros y variables con nombres descriptivos.
+
+ENTRADAS
+- $1: ruta de un archivo .zip
+- $2: ruta del directorio destino
+
+VALIDACIONES
+- Si no hay exactamente 2 argumentos, imprimir
+  "Uso: ./script.sh <archivo.zip> <directorio_destino>" y salir con exit 1.
+- Verificar que el .zip exista; si no, mostrar error y exit 1.
+- Manejar rutas con espacios (variables entre comillas).
+
+ORGANIZACIÓN
+- Descomprimir con unzip en una carpeta temporal creada con mktemp -d.
+- Con find, recorrer todos los archivos y copiarlos a subcarpetas del destino
+  por extensión (py/, txt/, jpg/, etc.; "otros/" si no tiene extensión).
+  Crear las carpetas con mkdir -p.
+
+AUDITORÍA DE PYTHON
+- Revisar solo los .py del destino.
+- Buscar "cv2", "import cv2" y "opencv" con grep -n (ignorando mayúsculas).
+- Por cada .py imprimir: ubicación, si contiene o no la palabra, y el número
+  de línea con la línea exacta de cada coincidencia.
+
+RESUMEN FINAL
+- Total de .py analizados y cuántos usan cv2 (contar archivos, no líneas).
+
+RESTRICCIONES
+- Usar solo unzip, find, grep, mkdir, if/case y comandos estándar.
+- Borrar la carpeta temporal al final de forma segura.
+- Entregar el script completo en un solo bloque de código.
+```
+
+### Prompt versión 2: cambio a PySide6 y organización por tipo
+
+```text
+Actúa como experto en Bash y Linux. Necesito un script llamado organizador.sh
+para una actividad universitaria. Debe ser compatible con Bash en Linux/WSL,
+tener comentarios claros y variables con nombres descriptivos.
+
+ENTRADAS
+- $1: ruta de un archivo .zip
+- $2: ruta del directorio destino
+
+VALIDACIONES
+- Si no hay exactamente 2 argumentos, imprimir
+  "Uso: ./script.sh <archivo.zip> <directorio_destino>" y salir con exit 1.
+- Verificar que el .zip exista; si no, mostrar error y exit 1.
+- Manejar rutas con espacios (variables entre comillas).
+- Crear el directorio destino con mkdir -p si no existe.
+
+DESCOMPRESIÓN
+- Descomprimir con unzip en una carpeta temporal creada con mktemp -d.
+
+CLASIFICACIÓN POR TIPO
+- Con find, recorrer todos los archivos de la carpeta temporal y, con case
+  sobre la extensión (convertida a minúsculas), copiarlos a estas
+  subcarpetas del destino:
+  - imagenes/: jpg, jpeg, png, gif, bmp, svg
+  - audio/: mp3, wav, ogg, flac
+  - video/: mp4, avi, mkv, mov
+  - documentos/: pdf, doc, docx, txt, md, xls, xlsx, ppt, pptx, csv
+  - scripts/: py, sh, js y similares (ver reglas abajo)
+  - otros/: cualquier otra extensión o archivos sin extensión
+- Crear las carpetas con mkdir -p.
+- Si hay dos archivos con el mismo nombre, no sobrescribir: agregar un
+  sufijo numérico.
+
+REGLAS PARA SCRIPTS
+- La carpeta principal es scripts/.
+- Cada archivo .py se analiza ANTES de guardarse, con grep -n -i "PySide6".
+  - Si lo contiene, se copia a scripts/PySide6/.
+  - Si no lo contiene, se copia a scripts/python_otros/.
+- Los demás scripts (.sh, .js, etc.) se copian a scripts/otros_scripts/.
+
+AUDITORÍA DE PYTHON (salida en terminal)
+- Por cada .py analizado imprimir: nombre/ubicación, si contiene o no
+  PySide6, y el número de línea con la línea exacta de cada coincidencia
+  (grep -n).
+
+RESUMEN FINAL
+- Total de .py analizados y cuántos usan PySide6 (contar archivos, no líneas).
+
+RESTRICCIONES
+- Usar solo unzip, find, grep, mkdir, if/case y comandos estándar.
+- Borrar la carpeta temporal al final de forma segura.
+- Entregar el script completo en un solo bloque de código.
+```
+
+### Prompt versión 3: subcarpetas por formato y descompresión detallada
+
+```text
+Actúa como experto en Bash y Linux. Necesito un script llamado organizador.sh
+para una actividad universitaria. Debe ser compatible con Bash en Linux/WSL,
+tener comentarios claros y variables con nombres descriptivos.
+
+ENTRADAS
+- $1: ruta de un archivo .zip
+- $2: ruta del directorio destino
+
+VALIDACIONES
+- Si no hay exactamente 2 argumentos, imprimir
+  "Uso: ./script.sh <archivo.zip> <directorio_destino>" y salir con exit 1.
+- Verificar que el .zip exista; si no, mostrar error y exit 1.
+- Verificar que unzip esté instalado (command -v); si no, avisar y exit 1.
+- Manejar rutas con espacios (variables entre comillas).
+- Crear el directorio destino con mkdir -p si no existe.
+
+DESCOMPRESIÓN
+- Crear una carpeta temporal con mktemp -d.
+- Descomprimir el .zip ahí con unzip -q "$1" -d "$carpeta_temporal".
+- Si unzip falla (archivo dañado), mostrar error y exit 1.
+- Usar trap para borrar la carpeta temporal al terminar, incluso si hay error.
+
+CLASIFICACIÓN POR TIPO Y FORMATO
+- Con find, recorrer todos los archivos de la carpeta temporal (incluyendo
+  subcarpetas) y, con case sobre la extensión en minúsculas, copiarlos a una
+  carpeta principal por tipo y, dentro, una subcarpeta por formato:
+  - imagenes/: jpg/, jpeg/, png/, gif/, bmp/, svg/
+  - audio/: mp3/, wav/, ogg/, flac/
+  - video/: mp4/, avi/, mkv/, mov/
+  - documentos/: pdf/, doc/, docx/, txt/, md/, xls/, xlsx/, ppt/, pptx/, csv/
+  - scripts/: ver reglas abajo
+  - otros/: cualquier otra extensión o sin extensión
+- Crear las carpetas con mkdir -p solo cuando haga falta.
+- Si hay dos archivos con el mismo nombre, no sobrescribir: agregar sufijo
+  numérico.
+
+REGLAS PARA SCRIPTS
+- Cada archivo .py se analiza ANTES de guardarse, con grep -n -i "PySide6".
+  - Si lo contiene: scripts/PySide6/
+  - Si no lo contiene: scripts/python_otros/
+- Los demás scripts (.sh, .js, etc.): scripts/otros_scripts/
+
+AUDITORÍA DE PYTHON (salida en terminal)
+- Por cada .py analizado imprimir: nombre/ubicación, si contiene o no
+  PySide6, y el número de línea con la línea exacta de cada coincidencia
+  (grep -n).
+
+RESUMEN FINAL
+- Total de .py analizados y cuántos usan PySide6 (contar archivos, no líneas).
+
+RESTRICCIONES
+- Usar solo unzip, find, grep, mkdir, if/case, trap y comandos estándar.
+- Entregar el script completo en un solo bloque de código.
+```
+
+### Versiones del código
+
+El archivo `prompts.txt` no incluye el código generado. Cada versión del script (`organizador.sh`) corresponde al prompt de la versión respectiva:
+
+- Versión 1: carpetas por extensión; auditoría de `cv2`.
+- Versión 2: carpetas por tipo; scripts separados según usen o no PySide6; sufijo numérico para duplicados.
+- Versión 3: carpetas por tipo y formato; verificación de `unzip`; salida con error si el zip está dañado; limpieza con `trap`.
+
+---
+
+## 3. Emilio
+
+### Flujo
+
+1. Intento 1, prompt inicial: prompt estructurado y detallado con la lógica, comandos y estructura de comentarios exigidos.
+2. Primer código generado: falló en el entorno MSYS2/UCRT64 / Git Bash en Windows.
+3. Prompt de corrección: se reportó que el script creaba las carpetas pero no generaba la lista de auditoría requerida.
+4. Código funcional definitivo, documentado: se reemplazó el ciclo `while ... done < <(find ...)` por un ciclo `for` con `IFS=$'\n'`.
+
+Observación del autor: el primer código se detenía silenciosamente en el ciclo `while ... done < <(find ...)` por el manejo de sustitución de procesos en MSYS2/UCRT64 en Windows. Al reemplazarlo por un ciclo `for` apoyado en `IFS=$'\n'`, el script completó la clasificación, eliminó el directorio temporal y ejecutó la auditoría de cv2 sin errores. Estado: FUNCIONAL.
+
+### Prompt inicial (Intento 1)
+
+```text
 Actúa como un experto en sistemas Unix y programación en Bash Shell. Necesito que desarrolles un script en Bash llamado script.sh que procese un archivo comprimido .zip, clasifique su contenido por extensión y realice una auditoría de código en los archivos de Python (.py).
 Es indispensable que el código esté exhaustivamente documentado con comentarios (#) en todas sus partes críticas explicando qué hace cada bloque y cada comando utilizado.
 
@@ -18,12 +287,12 @@ El script debe implementar estrictamente la siguiente lógica y comandos de Unix
    - Utiliza otro condicional if con el operador -f (if [ ! -f "$1" ]; then) para comprobar que el archivo .zip ingresado realmente exista. Si no existe, muestra un mensaje de error claro y sal con exit 1.
 
 2. Descompresión y Organización por Tipo de Archivo:
-   - Crea una carpeta temporal utilizando mktemp -d y descomprime ahí el contenido de $1 usando el comando unzip -q "$1" -d <carpeta_temporal>.
+   - Crea una carpeta temporal utilizando mktemp -d (o mkdir -p para un directorio temporal) y descomprime ahí el contenido de $1 usando el comando unzip -q "$1" -d <carpeta_temporal>.
    - Crea el directorio destino $2 si no existe usando mkdir -p "$2".
-   - Utiliza el comando find dentro de un ciclo para recorrer todos los archivos extraídos, ignorando carpetas vacías.
+   - Utiliza el comando find (find <carpeta_temporal> -type f) dentro de un ciclo para recorrer todos los archivos extraídos, ignorando carpetas vacías.
    - Para cada archivo, extrae su nombre con basename y obtén su extensión mediante expansión de parámetros de Bash (${archivo##*.}). Si un archivo no tiene extensión, asígnalo a una subcarpeta llamada otros/.
-   - Crea dinámicamente las subcarpetas dentro de $2 según cada extensión encontrada usando mkdir -p.
-   - Mueve cada archivo desde la carpeta temporal hacia su subcarpeta correspondiente en $2 utilizando el comando mv.
+   - Crea dinámicamente las subcarpetas dentro de $2 según cada extensión encontrada (ejemplo: $2/py/, $2/txt/, $2/jpg/, $2/otros/) usando mkdir -p.
+   - Mueve o copia cada archivo desde la carpeta temporal hacia su subcarpeta correspondiente en $2 utilizando los comandos mv o cp.
    - Al finalizar el traslado de archivos, elimina la carpeta temporal utilizando rm -rf.
 
 3. Auditoría de Código en Archivos .py:
@@ -32,10 +301,100 @@ El script debe implementar estrictamente la siguiente lógica y comandos de Unix
    - Por cada archivo .py, utiliza el comando grep -n -i -E "cv2|import cv2|opencv" para buscar coincidencias exactas o de términos clave de visión por computadora mostrando el número de línea.
    - Salida en terminal por archivo: Imprime claramente el nombre/ubicación del archivo, indica mediante un condicional if si contiene o no la librería buscada (cv2), y si la contiene, imprime el número de línea y la línea exacta arrojada por grep -n.
    - Resumen final: Al terminar el recorrido, imprime en la terminal el conteo total de archivos .py analizados y cuántos de ellos utilizan la librería cv2.
+```
 
+### Primer código generado (con fallo en entorno UCRT64 / Git Bash)
 
-1.2 Código Funcional Definitivo (Intento 1)
+```bash
+#!/bin/bash
 
+if [ "$#" -ne 2 ]; then
+    echo "Uso: ./script.sh <archivo.zip> <directorio_destino>"
+    exit 1
+fi
+
+ARCHIVO_ZIP="$1"
+DIR_DESTINO="$2"
+
+if [ ! -f "$ARCHIVO_ZIP" ]; then
+    echo "Error: El archivo '$ARCHIVO_ZIP' no existe o no es un archivo válido."
+    exit 1
+fi
+
+CARPETA_TEMPORAL=$(mktemp -d)
+echo "Directorio temporal creado en: $CARPETA_TEMPORAL"
+
+unzip -q "$ARCHIVO_ZIP" -d "$CARPETA_TEMPORAL"
+
+if [ $? -ne 0 ]; then
+    echo "Error: Falló la extracción de '$ARCHIVO_ZIP'. Verifique que sea un archivo .zip íntegro."
+    rm -rf "$CARPETA_TEMPORAL"
+    exit 1
+fi
+
+mkdir -p "$DIR_DESTINO"
+echo "Clasificando archivos extraídos en '$DIR_DESTINO'..."
+
+while IFS= read -r -d '' archivo; do
+    nombre_base=$(basename "$archivo")
+    if [[ "$nombre_base" == *.* && "$nombre_base" != .* ]]; then
+        extension="${nombre_base##*.}"
+        extension=$(echo "$extension" | tr '[:upper:]' '[:lower:]')
+    else
+        extension="otros"
+    fi
+    subcarpeta="$DIR_DESTINO/$extension"
+    mkdir -p "$subcarpeta"
+    mv "$archivo" "$subcarpeta/$nombre_base"
+done < <(find "$CARPETA_TEMPORAL" -type f -print0)
+
+rm -rf "$CARPETA_TEMPORAL"
+echo "Clasificación completada y carpeta temporal eliminada."
+echo "------------------------------------------------------------------------------"
+echo "Iniciando auditoría de código en archivos Python (.py)..."
+echo "------------------------------------------------------------------------------"
+
+total_py=0
+con_cv2=0
+DIR_PYTHON="$DIR_DESTINO/py"
+
+if [ -d "$DIR_PYTHON" ]; then
+    while IFS= read -r -d '' script_py; do
+        ((total_py++))
+        echo "Archivo analizado: $script_py"
+        coincidencias=$(grep -n -i -E "cv2|import cv2|opencv" "$script_py")
+        if [ -n "$coincidencias" ]; then
+            echo "  [ALERTA] Se detectó el uso de la librería OpenCV (cv2)."
+            echo "  Líneas coincidentes (Número_Línea:Código):"
+            echo "$coincidencias" | sed 's/^/    /'
+            ((con_cv2++))
+        else
+            echo "  [OK] No contiene referencias a la librería cv2 / OpenCV."
+        fi
+        echo "------------------------------------------------------------------------------"
+    done < <(find "$DIR_PYTHON" -type f -name "*.py" -print0)
+else
+    echo "No se encontraron archivos .py dentro del archivo comprimido para auditar."
+    echo "------------------------------------------------------------------------------"
+fi
+
+echo "RESUMEN DE AUDITORÍA PYTHON:"
+echo "  - Total de archivos .py analizados : $total_py"
+echo "  - Archivos que utilizan cv2/OpenCV : $con_cv2"
+echo "=============================================================================="
+```
+
+### Prompt de corrección (Iteración 2 del Intento 1)
+
+```text
+El código está arrojando "Directorio temporal creado en: /tmp/tmp.WzGjpazzfu" y "Clasificando archivos extraídos en './resultado_auditoria'..." y crea las carpetas dentro de la carpeta resultado_auditoria mas no genera la lista requerida, apóyame ajustando el código para arreglar esto.
+```
+
+### Código funcional definitivo (documentado)
+
+Cambios principales respecto al primer código: se sustituyen los dos ciclos `while ... done < <(find ...)` por ciclos `for` con `IFS=$'\n'`, se usan contadores con `$((...))` y se agregan comentarios en las partes críticas.
+
+```bash
 #!/bin/bash
 
 # Validación de que el script reciba exactamente 2 parámetros ($#)
@@ -58,6 +417,8 @@ CARPETA_TEMPORAL=$(mktemp -d)
 echo "Directorio temporal creado en: $CARPETA_TEMPORAL"
 
 unzip -q "$ARCHIVO_ZIP" -d "$CARPETA_TEMPORAL"
+
+# Creación del directorio destino si no existe
 mkdir -p "$DIR_DESTINO"
 
 echo "Clasificando archivos extraídos en '$DIR_DESTINO'..."
@@ -66,8 +427,9 @@ echo "Clasificando archivos extraídos en '$DIR_DESTINO'..."
 IFS=$'\n'
 for archivo in $(find "$CARPETA_TEMPORAL" -type f); do
     nombre_base=$(basename "$archivo")
-    
+
     # Obtención de extensión por expansión de parámetros o asignación a 'otros'
+    # (reconstruido)
     if [[ "$nombre_base" == *.* && "$nombre_base" != .* ]]; then
         extension="${nombre_base##*.}"
         extension=$(echo "$extension" | tr '[:upper:]' '[:lower:]')
@@ -75,24 +437,22 @@ for archivo in $(find "$CARPETA_TEMPORAL" -type f); do
         extension="otros"
     fi
 
+    # Creación dinámica de la subcarpeta y traslado del archivo (reconstruido)
     subcarpeta="$DIR_DESTINO/$extension"
     mkdir -p "$subcarpeta"
-    mv -f "$archivo" "$subcarpeta/$nombre_base"
+    mv "$archivo" "$subcarpeta/$nombre_base"
 done
-unset IFS
 
-# Eliminación de carpeta temporal con rm -rf
+# Eliminación de la carpeta temporal (reconstruido)
 rm -rf "$CARPETA_TEMPORAL"
 echo "Clasificación completada y carpeta temporal eliminada."
 echo "------------------------------------------------------------------------------"
-
-# Auditoría de código en los archivos Python (.py)
 echo "Iniciando auditoría de código en archivos Python (.py)..."
 echo "------------------------------------------------------------------------------"
 
+# Inicialización de contadores (reconstruido)
 total_py=0
 con_cv2=0
-
 DIR_PYTHON="$DIR_DESTINO/py"
 
 if [ -d "$DIR_PYTHON" ]; then
@@ -101,9 +461,9 @@ if [ -d "$DIR_PYTHON" ]; then
     for script_py in $(find "$DIR_PYTHON" -type f -name "*.py"); do
         total_py=$((total_py + 1))
         echo "Archivo analizado: $script_py"
-        
+
         coincidencias=$(grep -n -i -E "cv2|import cv2|opencv" "$script_py")
-        
+
         if [ -n "$coincidencias" ]; then
             echo "  [ALERTA] Contiene la librería buscada (cv2)."
             echo "  Líneas encontradas:"
@@ -114,7 +474,6 @@ if [ -d "$DIR_PYTHON" ]; then
         fi
         echo "------------------------------------------------------------------------------"
     done
-    unset IFS
 else
     echo "No se encontraron archivos .py para analizar."
     echo "------------------------------------------------------------------------------"
@@ -125,186 +484,18 @@ echo "RESUMEN FINAL DE AUDITORÍA:"
 echo "  - Total de archivos .py analizados : $total_py"
 echo "  - Archivos que utilizan cv2        : $con_cv2"
 echo "=============================================================================="
+```
 
+---
 
-2. Intento 2: Organización por Tipos de Archivo y Auditoría de PySide6
+## Comparación del flujo de los tres integrantes
 
-2.1 Prompt Utilizado (Intento 2)
-
-Actúa como experto en Bash y Linux. Necesito un script llamado organizador.sh para una actividad universitaria. Debe ser compatible con Bash en Linux/WSL, tener comentarios claros y variables con nombres descriptivos.
-
-ENTRADAS:
-- $1: ruta de un archivo .zip
-- $2: ruta del directorio destino
-
-VALIDACIONES:
-- Si no hay exactamente 2 argumentos, imprimir "Uso: ./script.sh <archivo.zip> <directorio_destino>" y salir con exit 1.
-- Verificar que el .zip exista; si no, mostrar error y exit 1.
-- Manejar rutas con espacios y crear el directorio destino con mkdir -p si no existe.
-
-DESCOMPRESIÓN Y CLASIFICACIÓN:
-- Descomprimir con unzip en una carpeta temporal creada con mktemp -d.
-- Con find, recorrer todos los archivos de la carpeta temporal y, con case sobre la extensión (en minúsculas), copiarlos a carpetas agrupadas (imagenes/, audio/, video/, documentos/, scripts/, otros/).
-- Regla especial scripts: los archivos .py se analizan antes de guardarse con grep -n -i "PySide6" para ubicarlos en scripts/PySide6/ o scripts/python_otros/.
-
-AUDITORÍA Y RESUMEN:
-- Por cada .py analizado imprimir ubicación, si contiene PySide6 y el número de línea.
-- Al final, mostrar total de archivos .py analizados y cuántos usan PySide6.
-
-
-2.2 Código Conceptual Generado (Intento 2)
-
-#!/bin/bash
-
-if [ "$#" -ne 2 ]; then
-    echo "Uso: ./script.sh <archivo.zip> <directorio_destino>"
-    exit 1
-fi
-
-ARCHIVO_ZIP="$1"
-DIR_DESTINO="$2"
-
-if [ ! -f "$ARCHIVO_ZIP" ]; then
-    echo "Error: El archivo no existe."
-    exit 1
-fi
-
-CARPETA_TEMPORAL=$(mktemp -d)
-unzip -q "$ARCHIVO_ZIP" -d "$CARPETA_TEMPORAL"
-mkdir -p "$DIR_DESTINO"/{imagenes,audio,video,documentos,scripts/{PySide6,python_otros,otros_scripts},otros}
-
-IFS=$'\n'
-for archivo in $(find "$CARPETA_TEMPORAL" -type f); do
-    nombre_base=$(basename "$archivo")
-    extension="${nombre_base##*.}"
-    extension=$(echo "$extension" | tr '[:upper:]' '[:lower:]')
-
-    case "$extension" in
-        jpg|jpeg|png|gif|bmp|svg)
-            cp "$archivo" "$DIR_DESTINO/imagenes/$nombre_base"
-            ;;
-        mp3|wav|ogg|flac)
-            cp "$archivo" "$DIR_DESTINO/audio/$nombre_base"
-            ;;
-        mp4|avi|mkv|mov)
-            cp "$archivo" "$DIR_DESTINO/video/$nombre_base"
-            ;;
-        pdf|doc|docx|txt|md|xls|xlsx|ppt|pptx|csv)
-            cp "$archivo" "$DIR_DESTINO/documentos/$nombre_base"
-            ;;
-        py)
-            if grep -q -i "PySide6" "$archivo"; then
-                cp "$archivo" "$DIR_DESTINO/scripts/PySide6/$nombre_base"
-            else
-                cp "$archivo" "$DIR_DESTINO/scripts/python_otros/$nombre_base"
-            fi
-            ;;
-        sh|js)
-            cp "$archivo" "$DIR_DESTINO/scripts/otros_scripts/$nombre_base"
-            ;;
-        *)
-            cp "$archivo" "$DIR_DESTINO/otros/$nombre_base"
-            ;;
-    esac
-done
-unset IFS
-
-rm -rf "$CARPETA_TEMPORAL"
-echo "Clasificación por categorías completada."
-
-
-3. Intento 3: Robustez Avanzada, Manejo de Errores y Trap
-
-3.1 Prompt Utilizado (Intento 3)
-
-Actúa como experto en Bash y Linux. Necesito un script avanzado llamado organizador.sh para una actividad universitaria. Debe ser compatible con Bash en Linux/WSL, comentarios claros y variables con nombres descriptivos.
-
-ENTRADAS Y VALIDACIONES:
-- Recibir exactamente 2 argumentos ($1 y $2). Si no, salir con exit 1.
-- Verificar existencia del .zip y validar que unzip esté instalado usando command -v.
-- Crear directorio destino con mkdir -p si no existe.
-
-DESCOMPRESIÓN Y LIMPIEZA SEGURA:
-- Crear carpeta temporal con mktemp -d y descomprimir con unzip -q.
-- Validar si unzip falla (archivo dañado) para mostrar error y salir con exit 1.
-- Utilizar trap para asegurar la eliminación de la carpeta temporal al finalizar o ante cualquier interrupción.
-
-CLASIFICACIÓN Y AUDITORÍA:
-- Recorrer con find y case para subcarpetas detalladas por formato (jpg/, png/, pdf/, txt/, etc.).
-- Filtrar scripts .py para auditoría con grep -n -i de PySide6, separando en subcarpetas especializadas.
-- Imprimir reporte detallado por archivo y resumen estadístico final al terminar.
-
-
-3.2 Código Conceptual Generado (Intento 3)
-
-#!/bin/bash
-
-if [ "$#" -ne 2 ]; then
-    echo "Uso: ./script.sh <archivo.zip> <directorio_destino>"
-    exit 1
-fi
-
-if ! command -v unzip &> /dev/null; then
-    echo "Error: El comando unzip no está instalado en el sistema."
-    exit 1
-fi
-
-ARCHIVO_ZIP="$1"
-DIR_DESTINO="$2"
-
-if [ ! -f "$ARCHIVO_ZIP" ]; then
-    echo "Error: El archivo .zip especificado no existe."
-    exit 1
-fi
-
-CARPETA_TEMPORAL=$(mktemp -d)
-trap 'rm -rf "$CARPETA_TEMPORAL"' EXIT
-
-unzip -q "$ARCHIVO_ZIP" -d "$CARPETA_TEMPORAL"
-if [ $? -ne 0 ]; then
-    echo "Error: El archivo zip está dañado o no es válido."
-    exit 1
-fi
-
-mkdir -p "$DIR_DESTINO"
-
-IFS=$'\n'
-for archivo in $(find "$CARPETA_TEMPORAL" -type f); do
-    nombre_base=$(basename "$archivo")
-    extension="${nombre_base##*.}"
-    extension=$(echo "$extension" | tr '[:upper:]' '[:lower:]')
-
-    case "$extension" in
-        jpg|png|pdf|txt)
-            mkdir -p "$DIR_DESTINO/$extension"
-            cp "$archivo" "$DIR_DESTINO/$extension/$nombre_base"
-            ;;
-        py)
-            mkdir -p "$DIR_DESTINO/py"
-            if grep -q -i "PySide6" "$archivo"; then
-                echo "Auditoría PySide6 encontrada en: $archivo"
-                grep -n -i "PySide6" "$archivo"
-            fi
-            cp "$archivo" "$DIR_DESTINO/py/$nombre_base"
-            ;;
-        *)
-            mkdir -p "$DIR_DESTINO/otros"
-            cp "$archivo" "$DIR_DESTINO/otros/$nombre_base"
-            ;;
-    esac
-done
-unset IFS
-
-echo "Proceso finalizado exitosamente."
-
-
-4. Instrucciones de Uso
-
-Otorgar permisos de ejecución al script:
-
-chmod +x script.sh
-
-
-Ejecutar pasando la ruta del archivo comprimido y el directorio destino:
-
-./script.sh proyecto_analisis.zip ./resultado_auditoria
+| Aspecto | Santiago | Raul | Emilio |
+|---|---|---|---|
+| Estrategia | Meta-prompt y luego refactorización con problemas reales | Tres reescrituras progresivas del prompt | Un prompt detallado y una corrección por fallo de entorno |
+| Clasificación | Por extensión | Por tipo y luego por tipo y formato | Por extensión (minúsculas, `otros/` sin extensión) |
+| Auditoría | PySide6 y cv2 | cv2, luego PySide6 | cv2 |
+| Operación sobre archivos | `cp` | `cp` con sufijo numérico en duplicados | `mv` |
+| Limpieza del temporal | `trap` | `trap` (versión 3) | `rm -rf` al final |
+| Recorrido de archivos | `find -print0` + `while read -d ''` | `find` | `find` con `for` e `IFS=$'\n'` (por MSYS2/UCRT64) |
+| Problema principal resuelto | Archivos basura de macOS y nombres con espacios | Requisitos cada vez más específicos | Ciclo `while` con sustitución de procesos fallando en Windows |
