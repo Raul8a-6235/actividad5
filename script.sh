@@ -46,7 +46,7 @@ echo "Iniciando auditoría de código en archivos Python (.py)..."
 echo "------------------------------------------------------------------------------"
 
 total_py=0
-con_cv2=0
+con_pyside6=0
 
 DIR_PYTHON="$DIR_DESTINO/py"
 
@@ -56,15 +56,15 @@ if [ -d "$DIR_PYTHON" ]; then
         total_py=$((total_py + 1))
         echo "Archivo analizado: $script_py"
         
-        coincidencias=$(grep -n -i -E "cv2|import cv2|opencv" "$script_py")
+        coincidencias=$(grep -n -i -E "PySide6|import PySide6|from PySide6" "$script_py")
         
         if [ -n "$coincidencias" ]; then
-            echo "  [ALERTA] Contiene la librería buscada (cv2)."
+            echo "  [ALERTA] Contiene la librería buscada (PySide6)."
             echo "  Líneas encontradas:"
             echo "$coincidencias" | sed 's/^/    /'
-            con_cv2=$((con_cv2 + 1))
+            con_pyside6=$((con_pyside6 + 1))
         else
-            echo "  [OK] No contiene la librería buscada (cv2)."
+            echo "  [OK] No contiene la librería buscada (PySide6)."
         fi
         echo "------------------------------------------------------------------------------"
     done
@@ -76,5 +76,5 @@ fi
 
 echo "RESUMEN FINAL DE AUDITORÍA:"
 echo "  - Total de archivos .py analizados : $total_py"
-echo "  - Archivos que utilizan cv2        : $con_cv2"
+echo "  - Archivos que utilizan PySide6    : $con_pyside6"
 echo "=============================================================================="
