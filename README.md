@@ -6,9 +6,9 @@ Este documento resume el flujo de prompts que cada integrante utilizó con IA pa
 |---|---|---|---|
 | Santiago | `prompt_Santiago.md` | Claude (Anthropic) | Meta-prompt, prompt inicial y refactorización por problemas reales |
 | Raul | `prompts.txt` | Claude (Anthropic) | Tres versiones del prompt, cada una más detallada que la anterior |
-| Emilio | `Texto1.txt` | Gemini Argon 4 | Prompt estructurado, corrección por fallo en MSYS2/UCRT64 y código final |
+| Emilio | `Texto1.txt` / `script.sh` | Gemini | Prompt estructurado, corrección por fallo en MSYS2/UCRT64, ajuste de auditoría a `PySide6` y código final |
 
-Nota sobre el material fuente: los archivos de Santiago y Raul contienen únicamente los prompts (no incluyen el código resultante). El archivo de Emilio es el único que contiene el código de cada intento, pero estaba desordenado (líneas mezcladas entre secciones) y el código final estaba truncado. En la sección de Emilio se reordenó el contenido; las partes del código final que no aparecían en el archivo se reconstruyeron a partir del primer código y de la corrección descrita, y están marcadas con el comentario `# (reconstruido)`.
+Nota sobre el material fuente: los archivos de Santiago y Raul contienen únicamente los prompts (no incluyen el código resultante). La sección de Emilio incluye el registro completo de prompts junto con el código de cada iteración, desde el primer intento hasta la versión funcional definitiva ajustada para auditar `PySide6`.
 
 ---
 
@@ -268,11 +268,12 @@ El archivo `prompts.txt` no incluye el código generado. Cada versión del scrip
 ### Flujo
 
 1. Intento 1, prompt inicial: prompt estructurado y detallado con la lógica, comandos y estructura de comentarios exigidos.
-2. Primer código generado: falló en el entorno MSYS2/UCRT64 / Git Bash en Windows.
-3. Prompt de corrección: se reportó que el script creaba las carpetas pero no generaba la lista de auditoría requerida.
-4. Código funcional definitivo, documentado: se reemplazó el ciclo `while ... done < <(find ...)` por un ciclo `for` con `IFS=$'\n'`.
+2. Primer código generado: falló en el entorno MSYS2/UCRT64 / Git Bash en Windows debido al uso de sustitución de procesos `< <(find ...)`.
+3. Prompt de corrección de entorno (Iteración 2): se reportó que el script creaba las carpetas pero no generaba la lista de auditoría requerida, reemplazando el ciclo `while` por un ciclo `for` con `IFS=$'\n'`.
+4. Prompt de ajuste de librería (Iteración 3): se adjuntó `script.sh` y se solicitó reemplazar la búsqueda de `cv2` por `PySide6`.
+5. Código funcional definitivo: script completo con recorrido compatible en MSYS2/UCRT64 y auditoría configurada para `PySide6`.
 
-Observación del autor: el primer código se detenía silenciosamente en el ciclo `while ... done < <(find ...)` por el manejo de sustitución de procesos en MSYS2/UCRT64 en Windows. Al reemplazarlo por un ciclo `for` apoyado en `IFS=$'\n'`, el script completó la clasificación, eliminó el directorio temporal y ejecutó la auditoría de cv2 sin errores. Estado: FUNCIONAL.
+Observación del autor: el primer código se detenía silenciosamente en el ciclo `while ... done < <(find ...)` por el manejo de sustitución de procesos en MSYS2/UCRT64 en Windows. Al reemplazarlo por un ciclo `for` apoyado en `IFS=$'\n'` (y restablecerlo con `unset IFS`) y actualizar la expresión regular de `grep` para detectar `PySide6`, el script completó la clasificación, eliminó el directorio temporal y ejecutó la auditoría sin errores. Estado: FUNCIONAL.
 
 ### Prompt inicial (Intento 1)
 
@@ -384,15 +385,107 @@ echo "  - Archivos que utilizan cv2/OpenCV : $con_cv2"
 echo "=============================================================================="
 ```
 
-### Prompt de corrección (Iteración 2 del Intento 1)
+### Prompt de corrección de entorno (Iteración 2)
 
 ```text
 El código está arrojando "Directorio temporal creado en: /tmp/tmp.WzGjpazzfu" y "Clasificando archivos extraídos en './resultado_auditoria'..." y crea las carpetas dentro de la carpeta resultado_auditoria mas no genera la lista requerida, apóyame ajustando el código para arreglar esto.
 ```
 
-### Código funcional definitivo (documentado)
+### Segundo código generado (funcional con `cv2`)
 
-Cambios principales respecto al primer código: se sustituyen los dos ciclos `while ... done < <(find ...)` por ciclos `for` con `IFS=$'\n'`, se usan contadores con `$((...))` y se agregan comentarios en las partes críticas.
+```bash
+#!/bin/bash
+
+if [ "$#" -ne 2 ]; then
+    echo "Uso: ./script.sh <archivo.zip> <directorio_destino>"
+    exit 1
+fi
+
+ARCHIVO_ZIP="$1"
+DIR_DESTINO="$2"
+
+if [ ! -f "$ARCHIVO_ZIP" ]; then
+    echo "Error: El archivo '$ARCHIVO_ZIP' no existe o no es un archivo válido."
+    exit 1
+fi
+
+CARPETA_TEMPORAL=$(mktemp -d)
+echo "Directorio temporal creado en: $CARPETA_TEMPORAL"
+
+unzip -q "$ARCHIVO_ZIP" -d "$CARPETA_TEMPORAL"
+mkdir -p "$DIR_DESTINO"
+
+echo "Clasificando archivos extraídos en '$DIR_DESTINO'..."
+
+IFS=$'\n'
+for archivo in $(find "$CARPETA_TEMPORAL" -type f); do
+    nombre_base=$(basename "$archivo")
+    
+    if [[ "$nombre_base" == *.* && "$nombre_base" != .* ]]; then
+        extension="${nombre_base##*.}"
+        extension=$(echo "$extension" | tr '[:upper:]' '[:lower:]')
+    else
+        extension="otros"
+    fi
+
+    subcarpeta="$DIR_DESTINO/$extension"
+    mkdir -p "$subcarpeta"
+    mv -f "$archivo" "$subcarpeta/$nombre_base"
+done
+unset IFS
+
+rm -rf "$CARPETA_TEMPORAL"
+echo "Clasificación completada y carpeta temporal eliminada."
+echo "------------------------------------------------------------------------------"
+
+echo "Iniciando auditoría de código en archivos Python (.py)..."
+echo "------------------------------------------------------------------------------"
+
+total_py=0
+con_cv2=0
+
+DIR_PYTHON="$DIR_DESTINO/py"
+
+if [ -d "$DIR_PYTHON" ]; then
+    IFS=$'\n'
+    for script_py in $(find "$DIR_PYTHON" -type f -name "*.py"); do
+        total_py=$((total_py + 1))
+        echo "Archivo analizado: $script_py"
+        
+        coincidencias=$(grep -n -i -E "cv2|import cv2|opencv" "$script_py")
+        
+        if [ -n "$coincidencias" ]; then
+            echo "  [ALERTA] Contiene la librería buscada (cv2)."
+            echo "  Líneas encontradas:"
+            echo "$coincidencias" | sed 's/^/    /'
+            con_cv2=$((con_cv2 + 1))
+        else
+            echo "  [OK] No contiene la librería buscada (cv2)."
+        fi
+        echo "------------------------------------------------------------------------------"
+    done
+    unset IFS
+else
+    echo "No se encontraron archivos .py para analizar."
+    echo "------------------------------------------------------------------------------"
+fi
+
+echo "RESUMEN FINAL DE AUDITORÍA:"
+echo "  - Total de archivos .py analizados : $total_py"
+echo "  - Archivos que utilizan cv2        : $con_cv2"
+echo "=============================================================================="
+```
+
+### Prompt de ajuste de librería (Iteración 3)
+
+```text
+Requerimos buscar archivos PySide6 en lugar de cv2, haz los cambios requeridos
+(con script.sh adjunto)
+```
+
+### Código funcional definitivo (ajustado a `PySide6` y documentado)
+
+Cambios principales: se mantiene la corrección de ciclos `for` con `IFS=$'\n'` y `unset IFS` para compatibilidad con MSYS2/UCRT64, y se actualiza la auditoría (`grep -n -i -E "PySide6|import PySide6|from PySide6"`, variable `con_pyside6` y mensajes de salida) para detectar `PySide6`.
 
 ```bash
 #!/bin/bash
@@ -427,9 +520,8 @@ echo "Clasificando archivos extraídos en '$DIR_DESTINO'..."
 IFS=$'\n'
 for archivo in $(find "$CARPETA_TEMPORAL" -type f); do
     nombre_base=$(basename "$archivo")
-
+    
     # Obtención de extensión por expansión de parámetros o asignación a 'otros'
-    # (reconstruido)
     if [[ "$nombre_base" == *.* && "$nombre_base" != .* ]]; then
         extension="${nombre_base##*.}"
         extension=$(echo "$extension" | tr '[:upper:]' '[:lower:]')
@@ -437,43 +529,47 @@ for archivo in $(find "$CARPETA_TEMPORAL" -type f); do
         extension="otros"
     fi
 
-    # Creación dinámica de la subcarpeta y traslado del archivo (reconstruido)
+    # Creación dinámica de la subcarpeta y traslado del archivo
     subcarpeta="$DIR_DESTINO/$extension"
     mkdir -p "$subcarpeta"
-    mv "$archivo" "$subcarpeta/$nombre_base"
+    mv -f "$archivo" "$subcarpeta/$nombre_base"
 done
+unset IFS
 
-# Eliminación de la carpeta temporal (reconstruido)
+# Eliminación de la carpeta temporal
 rm -rf "$CARPETA_TEMPORAL"
 echo "Clasificación completada y carpeta temporal eliminada."
 echo "------------------------------------------------------------------------------"
+
 echo "Iniciando auditoría de código en archivos Python (.py)..."
 echo "------------------------------------------------------------------------------"
 
-# Inicialización de contadores (reconstruido)
+# Inicialización de contadores
 total_py=0
-con_cv2=0
+con_pyside6=0
+
 DIR_PYTHON="$DIR_DESTINO/py"
 
 if [ -d "$DIR_PYTHON" ]; then
     IFS=$'\n'
-    # Filtrado de archivos .py con find y búsqueda de cv2/opencv con grep -n -i -E
+    # Filtrado de archivos .py con find y búsqueda de PySide6 con grep -n -i -E
     for script_py in $(find "$DIR_PYTHON" -type f -name "*.py"); do
         total_py=$((total_py + 1))
         echo "Archivo analizado: $script_py"
-
-        coincidencias=$(grep -n -i -E "cv2|import cv2|opencv" "$script_py")
-
+        
+        coincidencias=$(grep -n -i -E "PySide6|import PySide6|from PySide6" "$script_py")
+        
         if [ -n "$coincidencias" ]; then
-            echo "  [ALERTA] Contiene la librería buscada (cv2)."
+            echo "  [ALERTA] Contiene la librería buscada (PySide6)."
             echo "  Líneas encontradas:"
             echo "$coincidencias" | sed 's/^/    /'
-            con_cv2=$((con_cv2 + 1))
+            con_pyside6=$((con_pyside6 + 1))
         else
-            echo "  [OK] No contiene la librería buscada (cv2)."
+            echo "  [OK] No contiene la librería buscada (PySide6)."
         fi
         echo "------------------------------------------------------------------------------"
     done
+    unset IFS
 else
     echo "No se encontraron archivos .py para analizar."
     echo "------------------------------------------------------------------------------"
@@ -482,7 +578,7 @@ fi
 # Resumen final de conteo
 echo "RESUMEN FINAL DE AUDITORÍA:"
 echo "  - Total de archivos .py analizados : $total_py"
-echo "  - Archivos que utilizan cv2        : $con_cv2"
+echo "  - Archivos que utilizan PySide6    : $con_pyside6"
 echo "=============================================================================="
 ```
 
@@ -492,10 +588,10 @@ echo "==========================================================================
 
 | Aspecto | Santiago | Raul | Emilio |
 |---|---|---|---|
-| Estrategia | Meta-prompt y luego refactorización con problemas reales | Tres reescrituras progresivas del prompt | Un prompt detallado y una corrección por fallo de entorno |
+| Estrategia | Meta-prompt y luego refactorización con problemas reales | Tres reescrituras progresivas del prompt | Prompt detallado, corrección de entorno y ajuste de librería auditada |
 | Clasificación | Por extensión | Por tipo y luego por tipo y formato | Por extensión (minúsculas, `otros/` sin extensión) |
-| Auditoría | PySide6 y cv2 | cv2, luego PySide6 | cv2 |
-| Operación sobre archivos | `cp` | `cp` con sufijo numérico en duplicados | `mv` |
+| Auditoría | PySide6 y cv2 | cv2, luego PySide6 | cv2, luego ajustado a PySide6 |
+| Operación sobre archivos | `cp` | `cp` con sufijo numérico en duplicados | `mv -f` |
 | Limpieza del temporal | `trap` | `trap` (versión 3) | `rm -rf` al final |
-| Recorrido de archivos | `find -print0` + `while read -d ''` | `find` | `find` con `for` e `IFS=$'\n'` (por MSYS2/UCRT64) |
-| Problema principal resuelto | Archivos basura de macOS y nombres con espacios | Requisitos cada vez más específicos | Ciclo `while` con sustitución de procesos fallando en Windows |
+| Recorrido de archivos | `find -print0` + `while read -d ''` | `find` | `find` con `for` e `IFS=$'\n'` + `unset IFS` (por MSYS2/UCRT64) |
+| Problema principal resuelto | Archivos basura de macOS y nombres con espacios | Requisitos cada vez más específicos | Ciclo `while` con sustitución de procesos fallando en Windows y transición a `PySide6` |
